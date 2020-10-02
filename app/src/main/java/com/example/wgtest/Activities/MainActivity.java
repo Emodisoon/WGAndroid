@@ -1,4 +1,4 @@
-package com.example.wgtest;
+package com.example.wgtest.Activities;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -13,31 +13,23 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.wgtest.VpnTools.MyTunnel;
+import com.example.wgtest.R;
 import com.example.wgtest.VpnTools.VpnWorker;
 import com.example.wgtest.VpnTools.WgConfig;
-import com.wireguard.android.backend.BackendException;
 import com.wireguard.android.backend.GoBackend;
 import com.wireguard.android.backend.Statistics;
-import com.wireguard.android.backend.Tunnel;
-import com.wireguard.config.Config;
-import com.wireguard.config.InetNetwork;
-import com.wireguard.config.Interface;
-import com.wireguard.config.Peer;
-import com.wireguard.crypto.Key;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity {
     static String TAG = "MyVpn";
 
     Button vpnConnectBtn;
     Button vpnDisconnectBtn;
-    Button statsBtn, SocketBtn;
+    Button statsBtn, SocketBtn, vpnConfActivityBtn;
     TextView RxTv, TxTv, IpTv;
 
     VpnWorker vpnWorker;
@@ -82,6 +74,13 @@ public class MainActivity extends AppCompatActivity {
                 ss.execute();
             }
         });
+        vpnConfActivityBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(getApplicationContext(), VpnConfigActivity.class);
+                startActivity(intent);
+            }
+        });
     }
 
     void GetStats(){
@@ -111,6 +110,7 @@ public class MainActivity extends AppCompatActivity {
         TxTv = findViewById(R.id.TxTv);
         IpTv = findViewById(R.id.ipTv);
         SocketBtn = findViewById(R.id.SocketBtn);
+        vpnConfActivityBtn = findViewById(R.id.VpnConfActivityBtn);
     }
 
     private class SendSocket extends AsyncTask<Void,Void,Void>{

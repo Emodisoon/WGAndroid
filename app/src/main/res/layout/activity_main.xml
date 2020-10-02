@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    tools:context=".Activities.MainActivity">
 
     <Button
         android:id="@+id/Vpn_stat_btn"
@@ -83,5 +83,15 @@
         app:layout_constraintBottom_toTopOf="@+id/Connect_Vpn_btn"
         app:layout_constraintEnd_toEndOf="@+id/Connect_Vpn_btn"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/VpnConfActivityBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginBottom="24dp"
+        android:text="VPN config"
+        app:layout_constraintBottom_toTopOf="@+id/Vpn_stat_btn"
+        app:layout_constraintStart_toEndOf="@+id/SocketBtn" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
