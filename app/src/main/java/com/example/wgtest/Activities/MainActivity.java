@@ -5,6 +5,7 @@ import androidx.core.app.ActivityCompat;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
@@ -81,7 +82,11 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
+
+
     }
+
+
 
     void GetStats(){
         if(vpnWorker.isVpnConnected()) {
@@ -139,10 +144,28 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    void LoadCfgFromSave() {
+        SharedPreferences prefs =  getSharedPreferences("CFG",MODE_PRIVATE);
+        if (prefs.getString("HaveSettings", "").equals("true")) {
+           WgConfig.AllowedIp = prefs.getString("AllowedIp","");
+           WgConfig.Endpoint =  prefs.getString("Endpoint","");
+           WgConfig.peerPublicKey = prefs.getString("peerPublicKey","");
+           WgConfig.PersistentKeepAlive = Integer.parseInt(prefs.getString("PersistentKeepAlive","15"));
+           WgConfig.InterfacePrivateKey =  prefs.getString("InterfacePrivateKey","");
+           WgConfig.InterfaceAddress = prefs.getString("InterfaceAddress","");
+        }
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
         if(vpnWorker.isVpnConnected())
             vpnWorker.DisconnetVPN();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        LoadCfgFromSave();
     }
 }

@@ -2,6 +2,10 @@ package com.example.wgtest.VpnTools;
 
 //Класс конфигурации VPN
 
+import android.content.SharedPreferences;
+
+import java.util.prefs.Preferences;
+
 public class WgConfig {
     //Конфигурация пира
     public static String AllowedIp           = "0.0.0.0/0";
@@ -11,5 +15,7 @@ public class WgConfig {
     //Конфигурация Интерфейса
     public static String InterfacePrivateKey = "QBFQ85WXg8uXgyKRsHKiewu4N7EnXoq5i1io8yl5L2I=";
     public static String InterfaceAddress    = "10.0.0.2/24";
+
+
 
 }

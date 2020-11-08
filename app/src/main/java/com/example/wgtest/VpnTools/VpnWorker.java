@@ -29,28 +29,12 @@ public class VpnWorker {
     Boolean isVpnRunning = false;
     public VpnWorker(Context context){
         this.context = context;
-        Peer.Builder peer = new Peer.Builder();
         config = new Config.Builder();
-        Interface.Builder inter = new Interface.Builder();
 
         backend = new GoBackend(context);
 
         //Создание конфигурации WireGuard
-        try {
-            peer.addAllowedIp(InetNetwork.parse(WgConfig.AllowedIp));
-            peer.parseEndpoint(WgConfig.Endpoint);
-            peer.setPublicKey(Key.fromBase64(WgConfig.peerPublicKey));
-            peer.setPersistentKeepalive(WgConfig.PersistentKeepAlive);
 
-            inter.parsePrivateKey(WgConfig.InterfacePrivateKey);
-            inter.addDnsServer(InetAddress.getByName("8.8.8.8"));
-            inter.addAddress(InetNetwork.parse(WgConfig.InterfaceAddress));
-
-            config.addPeer(peer.build());
-            config.setInterface(inter.build());
-        }catch (Exception e){
-            Log.e("VpnWorker", Objects.requireNonNull(e.getMessage()));
-        }
     }
 
     //Подключение к VPN
@@ -88,7 +72,28 @@ public class VpnWorker {
 
         @Override
         protected Void doInBackground(Void... voids) {
+            Peer.Builder peer = new Peer.Builder();
+
+
+            Interface.Builder inter = new Interface.Builder();
+            try {
+                Log.e("Endpoint:",WgConfig.Endpoint);
+                peer.addAllowedIp(InetNetwork.parse(WgConfig.AllowedIp));
+                peer.parseEndpoint(WgConfig.Endpoint);
+                peer.setPublicKey(Key.fromBase64(WgConfig.peerPublicKey));
+                peer.setPersistentKeepalive(WgConfig.PersistentKeepAlive);
+
+                inter.parsePrivateKey(WgConfig.InterfacePrivateKey);
+                inter.addDnsServer(InetAddress.getByName("8.8.8.8"));
+                inter.addAddress(InetNetwork.parse(WgConfig.InterfaceAddress));
+
+                config.addPeer(peer.build());
+                config.setInterface(inter.build());
+            }catch (Exception e){
+                Log.e("VpnWorker", Objects.requireNonNull(e.getMessage()));
+            }
             tunnel = new MyTunnel("MyTunnel", config.build(), Tunnel.State.DOWN);
+
             try {
                 backend.setState(tunnel, Tunnel.State.UP, config.build());
             }catch (Exception e ){
