@@ -1,36 +1,42 @@
+/*
+
+ *
+ */
+
 package com.example.wgtest.Activities;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.AsyncTask;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+
 import com.example.wgtest.R;
+import com.example.wgtest.Utils.MyLocationListener;
+import com.example.wgtest.Utils.ServerThread;
 import com.example.wgtest.VpnTools.VpnWorker;
 import com.example.wgtest.VpnTools.WgConfig;
 import com.wireguard.android.backend.GoBackend;
 import com.wireguard.android.backend.Statistics;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.net.InetAddress;
-import java.net.Socket;
 
 public class MainActivity extends AppCompatActivity {
     static String TAG = "MyVpn";
 
-    Button vpnConnectBtn;
-    Button vpnDisconnectBtn;
-    Button statsBtn, SocketBtn, vpnConfActivityBtn;
+    ServerThread serverThread;
+
+    Button statsBtn, vpnConfActivityBtn, testBtn;
     TextView RxTv, TxTv, IpTv;
 
     VpnWorker vpnWorker;
@@ -42,51 +48,48 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         FindViews();
 
+        //Запуск впн
         vpnWorker = new VpnWorker(getApplicationContext());
+        vpnWorker.ConnectVpn();
 
-        // показываем Activity для запроса прав у пользователя
+
+
+        //Права на координаты todo Сделать проверку на gps
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, PackageManager.PERMISSION_GRANTED);
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        MyLocationListener locationListener = new MyLocationListener();
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(getApplicationContext(),"location error", Toast.LENGTH_SHORT).show();
+        }else
+            if(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                Log.e(TAG, "enabled GPS provider");
+                locationManager.requestSingleUpdate(LocationManager.GPS_PROVIDER,locationListener,null);
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+
+            }
+            else {
+                locationManager.requestSingleUpdate(LocationManager.NETWORK_PROVIDER,locationListener,null);
+                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
+            }
+        //Запуск сервер сокета
+        serverThread = new ServerThread(getApplicationContext(),9999, locationListener);
+
+        // показываем Activity для запроса прав ВПН у пользователя
         Intent intent = GoBackend.VpnService.prepare(this);
         if(intent !=null)
         startActivityForResult(intent, 1); // запрос прав
 
-        vpnConnectBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                vpnWorker.ConnectVpn();
-            }
+        testBtn = findViewById(R.id.TestBtn);
+        testBtn.setOnClickListener(v -> {
 
         });
-        vpnDisconnectBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                vpnWorker.DisconnetVPN();
-            }
-        });
-        statsBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                GetStats();
-            }
-        });
-        SocketBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                SendSocket ss = new SendSocket();
-                ss.execute();
-            }
-        });
-        vpnConfActivityBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(getApplicationContext(), VpnConfigActivity.class);
-                startActivity(intent);
-            }
-        });
 
-
+        statsBtn.setOnClickListener(v -> GetStats());
+        vpnConfActivityBtn.setOnClickListener(v -> {
+            Intent intent1 = new Intent(getApplicationContext(), VpnConfigActivity.class);
+            startActivity(intent1);
+        });
     }
-
-
 
     void GetStats(){
         if(vpnWorker.isVpnConnected()) {
@@ -108,40 +111,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void FindViews(){
-        vpnConnectBtn = findViewById(R.id.Connect_Vpn_btn);
-        vpnDisconnectBtn = findViewById(R.id.Disconnect_btn);
         statsBtn = findViewById(R.id.Vpn_stat_btn);
         RxTv = findViewById(R.id.RxTv);
         TxTv = findViewById(R.id.TxTv);
         IpTv = findViewById(R.id.ipTv);
-        SocketBtn = findViewById(R.id.SocketBtn);
         vpnConfActivityBtn = findViewById(R.id.VpnConfActivityBtn);
-    }
-
-    private class SendSocket extends AsyncTask<Void,Void,Void>{
-
-        @Override
-        protected Void doInBackground(Void... voids) {
-            try {
-                Log.e("socket", "sending");
-                InetAddress ipAddress = InetAddress.getByName("10.0.0.3");
-                Socket socket = new Socket(ipAddress, 8080);
-
-                DataInputStream in = new DataInputStream(socket.getInputStream());
-                DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-
-                String line = "poshel nahooy";
-
-                out.writeUTF(line);
-                out.flush();
-                line = in.readUTF();
-                Log.e("line", line);
-
-            }catch (Exception e){
-                e.printStackTrace();
-            }
-            return null;
-        }
     }
 
     void LoadCfgFromSave() {
@@ -161,6 +135,7 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         if(vpnWorker.isVpnConnected())
             vpnWorker.DisconnetVPN();
+
     }
 
     @Override
