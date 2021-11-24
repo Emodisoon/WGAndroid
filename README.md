@@ -27,4 +27,4 @@ VPN необходим для упрощения передачи сообщен
 
 Здесь расположены классы для работы с VPN.
 
-[Backend Сервер] (https://github.com/Emodisoon/WGServer)
+[Backend Сервер](https://github.com/Emodisoon/WGServer)
