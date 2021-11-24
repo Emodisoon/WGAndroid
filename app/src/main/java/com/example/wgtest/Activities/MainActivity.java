@@ -1,20 +1,14 @@
-/*
-
- *
- */
-
 package com.example.wgtest.Activities;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.util.Log;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -23,10 +17,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import com.example.wgtest.R;
-import com.example.wgtest.Utils.MyLocationListener;
 import com.example.wgtest.Utils.ServerThread;
 import com.example.wgtest.VpnTools.VpnWorker;
 import com.example.wgtest.VpnTools.WgConfig;
+import com.google.android.gms.location.FusedLocationProviderClient;
 import com.wireguard.android.backend.GoBackend;
 import com.wireguard.android.backend.Statistics;
 
@@ -36,7 +30,9 @@ public class MainActivity extends AppCompatActivity {
 
     ServerThread serverThread;
 
-    Button statsBtn, vpnConfActivityBtn, testBtn;
+    FusedLocationProviderClient fusedLocationProviderClient;
+
+    Button statsBtn, vpnConfActivityBtn;
     TextView RxTv, TxTv, IpTv;
 
     VpnWorker vpnWorker;
@@ -52,51 +48,52 @@ public class MainActivity extends AppCompatActivity {
         vpnWorker = new VpnWorker(getApplicationContext());
         vpnWorker.ConnectVpn();
 
-
-
-        //Права на координаты todo Сделать проверку на gps
+        //Права на координаты
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, PackageManager.PERMISSION_GRANTED);
-        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        MyLocationListener locationListener = new MyLocationListener();
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(getApplicationContext(),"location error", Toast.LENGTH_SHORT).show();
-        }else
-            if(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                Log.e(TAG, "enabled GPS provider");
-                locationManager.requestSingleUpdate(LocationManager.GPS_PROVIDER,locationListener,null);
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
 
-            }
-            else {
-                locationManager.requestSingleUpdate(LocationManager.NETWORK_PROVIDER,locationListener,null);
-                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
-            }
-        //Запуск сервер сокета
-        serverThread = new ServerThread(getApplicationContext(),9999, locationListener);
 
         // показываем Activity для запроса прав ВПН у пользователя
         Intent intent = GoBackend.VpnService.prepare(this);
-        if(intent !=null)
-        startActivityForResult(intent, 1); // запрос прав
+        if (intent != null)
+            startActivityForResult(intent, 1); // запрос прав
 
-        testBtn = findViewById(R.id.TestBtn);
-        testBtn.setOnClickListener(v -> {
-
-        });
 
         statsBtn.setOnClickListener(v -> GetStats());
         vpnConfActivityBtn.setOnClickListener(v -> {
             Intent intent1 = new Intent(getApplicationContext(), VpnConfigActivity.class);
             startActivity(intent1);
         });
+
+
+        boolean isGps = true;
+
+        //Location work:
+        final LocationManager manager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setMessage("На вашем устройстве выключен GPS. Вы хотитет его включить? Это необходимо для корректной работы приложения.")
+                    .setCancelable(false)
+                    .setPositiveButton("Да", (dialog, id) -> {
+                        startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                        serverThread = new ServerThread(getApplicationContext(), true, 9999);
+                    })
+                    .setNegativeButton("Нет", (dialog, id) -> {
+                        dialog.cancel();
+                        serverThread = new ServerThread(getApplicationContext(), false, 9999);
+                    });
+            final AlertDialog alert = builder.create();
+            alert.show();
+        } else {
+            serverThread = new ServerThread(getApplicationContext(), true, 9999);
+        }
+
+
     }
 
-    void GetStats(){
-        if(vpnWorker.isVpnConnected()) {
+    @SuppressLint("SetTextI18n")
+    void GetStats() {
+        if (vpnWorker.isVpnConnected()) {
             stats = vpnWorker.getStatistics();
-            Log.d("transmitted traffic", Long.toString(stats.totalTx()));
-
-            Log.d("recieved traffic", Long.toString(stats.totalRx()));
             if (stats.totalRx() > 1000000 && stats.totalTx() > 1000000) {
                 RxTv.setText("Получено: " + stats.totalRx() / 1000000 + " мБ");
                 TxTv.setText("Отправлено: " + stats.totalTx() / 1000000 + " мБ");
@@ -105,12 +102,11 @@ public class MainActivity extends AppCompatActivity {
                 TxTv.setText("Отправлено: " + stats.totalTx() / 1000 + " кБ");
             }
             IpTv.setText("IP: " + WgConfig.InterfaceAddress);
-        }
-        else
-            Toast.makeText(getApplicationContext(), "Vpn is not running",Toast.LENGTH_SHORT).show();
+        } else
+            Toast.makeText(getApplicationContext(), "Vpn is not running", Toast.LENGTH_SHORT).show();
     }
 
-    void FindViews(){
+    void FindViews() {
         statsBtn = findViewById(R.id.Vpn_stat_btn);
         RxTv = findViewById(R.id.RxTv);
         TxTv = findViewById(R.id.TxTv);
@@ -119,21 +115,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void LoadCfgFromSave() {
-        SharedPreferences prefs =  getSharedPreferences("CFG",MODE_PRIVATE);
+        SharedPreferences prefs = getSharedPreferences("CFG", MODE_PRIVATE);
         if (prefs.getString("HaveSettings", "").equals("true")) {
-           WgConfig.AllowedIp = prefs.getString("AllowedIp","");
-           WgConfig.Endpoint =  prefs.getString("Endpoint","");
-           WgConfig.peerPublicKey = prefs.getString("peerPublicKey","");
-           WgConfig.PersistentKeepAlive = Integer.parseInt(prefs.getString("PersistentKeepAlive","15"));
-           WgConfig.InterfacePrivateKey =  prefs.getString("InterfacePrivateKey","");
-           WgConfig.InterfaceAddress = prefs.getString("InterfaceAddress","");
+            WgConfig.AllowedIp = prefs.getString("AllowedIp", "");
+            WgConfig.Endpoint = prefs.getString("Endpoint", "");
+            WgConfig.peerPublicKey = prefs.getString("peerPublicKey", "");
+            WgConfig.PersistentKeepAlive = Integer.parseInt(prefs.getString("PersistentKeepAlive", "15"));
+            WgConfig.InterfacePrivateKey = prefs.getString("InterfacePrivateKey", "");
+            WgConfig.InterfaceAddress = prefs.getString("InterfaceAddress", "");
         }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if(vpnWorker.isVpnConnected())
+        if (vpnWorker.isVpnConnected())
             vpnWorker.DisconnetVPN();
 
     }

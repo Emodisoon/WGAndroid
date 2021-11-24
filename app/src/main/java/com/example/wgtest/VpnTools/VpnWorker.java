@@ -33,7 +33,6 @@ public class VpnWorker {
 
         backend = new GoBackend(context);
 
-        //Создание конфигурации WireGuard
 
     }
 
